@@ -26,7 +26,7 @@ const Layout = ({ children }) => {
                 <GraduationCap size={24} />
               </div>
               <span className="text-xl font-bold tracking-tight text-primary hidden sm:block">
-                Student Intelligence
+                Seed Track
               </span>
             </Link>
 
@@ -103,7 +103,7 @@ const Layout = ({ children }) => {
       <footer className="mt-24 py-16 border-t border-primary/10 text-center space-y-4">
         <div className="flex items-center justify-center gap-2 text-primary font-bold">
           <GraduationCap size={24} />
-          <span>Real-Time Student Intelligence System</span>
+          <span>Seed Track</span>
         </div>
         <p className="text-text/30 text-sm font-medium">
           Empowering rural educators with actionable data. Built for impact.

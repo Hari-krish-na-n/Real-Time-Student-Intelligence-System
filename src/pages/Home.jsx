@@ -23,7 +23,7 @@ const Home = () => {
   return (
     <div className="min-h-screen min-w-full flex items-center justify-center bg-gradient-to-br from-primary/20 via-background to-secondary/20 p-0">
       <div className="w-full h-full max-w-md mx-4 my-8 bg-white p-10 rounded-3xl border border-primary/10 shadow-xl flex flex-col justify-center">
-        <h1 className="text-3xl font-bold text-primary text-center mb-6">Login to Student Intelligence</h1>
+        <h1 className="text-3xl font-bold text-primary text-center mb-6">Login to Seed Track</h1>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
