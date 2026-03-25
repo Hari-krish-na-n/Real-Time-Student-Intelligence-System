@@ -18,7 +18,11 @@ const Insights = () => {
   }, []);
 
   const insights = useMemo(() => {
-    if (records.length === 0) return [];
+    if (records.length === 0) return { 
+      results: [], topPerformers: [], weakestSubject: { subject: 'N/A', avg: 0 }, 
+      statusCounts: {}, lowAttendance: [], lowEngagement: [], 
+      criticalRisk: [], subjectAverages: [] 
+    };
 
     const results = [];
     const total = records.length;
@@ -43,9 +47,22 @@ const Insights = () => {
       ? subjectAverages.reduce((min, curr) => curr.avg < min.avg ? curr : min)
       : { subject: 'N/A', avg: 0 };
     const topPerformers = [...records].sort((a, b) => b.averageMarks - a.averageMarks).slice(0, 3);
-    const lowAttendance = records.filter(r => r.attendancePercentage < 75);
+    const lowAttendance = records.filter(r => r.attendancePercentage < 80);
+    const criticalRisk = records.filter(r => r.attendancePercentage < 80 && r.averageMarks < 40);
 
-    // 1. Subject Focus Insight
+    // 1. Critical Risk Insight
+    if (criticalRisk.length > 0) {
+      results.push({
+        type: 'critical',
+        title: `${criticalRisk.length} students at critical risk`,
+        description: `High absence (>20%) + low scores detected. Recommended: Immediate home visit or parent intervention.`,
+        icon: AlertCircle,
+        color: 'bg-red-50 text-red-600 border-red-200',
+        action: 'Intervene Now'
+      });
+    }
+
+    // 2. Subject Focus Insight
     results.push({
       type: 'focus',
       subject: weakestSubject.subject,
@@ -56,7 +73,7 @@ const Insights = () => {
       action: 'View Subject Report'
     });
 
-    // 2. Subject Weakness Count
+    // 3. Subject Weakness Count
     Object.entries(subjectWeakCount).forEach(([sub, count]) => {
       if (count > 0) {
         results.push({
@@ -65,18 +82,18 @@ const Insights = () => {
           title: `${count} students need improvement in ${sub.charAt(0).toUpperCase() + sub.slice(1)}`,
           description: `These students scored below 40% in ${sub}. Targeted remedial support is needed.`,
           icon: BookOpen,
-          color: 'bg-red-50 text-red-600 border-red-100',
+          color: 'bg-orange-50 text-orange-600 border-orange-100',
           action: 'Identify Students'
         });
       }
     });
 
-    // 3. Attendance Insight
+    // 4. Attendance Insight
     if (lowAttendance.length > 0) {
       results.push({
         type: 'attendance',
         title: `${lowAttendance.length} students have low attendance`,
-        description: `These students have attendance below 75%. This is strongly correlated with poor performance.`,
+        description: `These students have attendance below 80%. This is strongly correlated with poor performance and dropout risk.`,
         icon: Calendar,
         color: 'bg-secondary/10 text-secondary border-secondary/20',
         action: 'View Attendance'
@@ -91,7 +108,7 @@ const Insights = () => {
 
     const lowEngagement = records.filter(r => r.engagement === 'Low');
 
-    return { results, topPerformers, weakestSubject, statusCounts, lowAttendance, lowEngagement };
+    return { results, topPerformers, weakestSubject, statusCounts, lowAttendance, lowEngagement, criticalRisk, subjectAverages };
   }, [records]);
 
   return (
@@ -158,6 +175,81 @@ const Insights = () => {
                 </motion.div>
               ))}
             </div>
+
+            {/* Weekly Learning Trends Report */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="bg-white p-10 rounded-[50px] border border-primary/10 shadow-sm space-y-8"
+            >
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <h3 className="text-2xl font-bold text-text flex items-center gap-3">
+                    <TrendingUp size={28} className="text-primary" /> Weekly Learning Trends
+                  </h3>
+                  <p className="text-text/60 font-medium">Subject-wise performance and dropout risk analysis.</p>
+                </div>
+                <div className="px-4 py-2 bg-primary/5 rounded-2xl text-xs font-bold text-primary uppercase tracking-widest">
+                  Week of {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-8">
+                <div className="space-y-6">
+                  <h4 className="text-sm font-bold text-text/40 uppercase tracking-widest">Subject Proficiency</h4>
+                  <div className="space-y-4">
+                    {insights.subjectAverages.map(({ subject, avg }) => (
+                      <div key={subject} className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="font-bold text-text capitalize">{subject}</span>
+                          <span className={cn("font-bold", avg < 40 ? "text-red-500" : "text-primary")}>{avg}%</span>
+                        </div>
+                        <div className="h-3 bg-background rounded-full overflow-hidden">
+                          <motion.div 
+                            initial={{ width: 0 }}
+                            animate={{ width: `${avg}%` }}
+                            transition={{ duration: 1, ease: "easeOut" }}
+                            className={cn("h-full rounded-full", avg < 40 ? "bg-red-400" : "bg-primary")}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <h4 className="text-sm font-bold text-text/40 uppercase tracking-widest">Dropout Risk Summary</h4>
+                  <div className="p-6 bg-red-50 rounded-[32px] border border-red-100 space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-red-100 rounded-2xl flex items-center justify-center text-red-600">
+                        <TrendingDown size={20} />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-red-600/60 uppercase tracking-widest">Critical Risks</p>
+                        <p className="text-2xl font-bold text-red-900">{insights.criticalRisk.length} Students</p>
+                      </div>
+                    </div>
+                    <p className="text-sm text-red-800/70 leading-relaxed">
+                      {insights.criticalRisk.length > 0 
+                        ? `Identified ${insights.criticalRisk.length} students showing a combination of low engagement and high absenteeism. Early intervention is critical to prevent dropout.`
+                        : "No students currently meet the critical dropout risk criteria. Maintain regular engagement to keep this trend."
+                      }
+                    </p>
+                    {insights.criticalRisk.length > 0 && (
+                      <div className="pt-2">
+                        <button 
+                          onClick={() => navigate('/dashboard', { state: { filter: 'at-risk' } })}
+                          className="w-full py-3 bg-red-600 text-white rounded-2xl font-bold text-sm hover:bg-red-700 transition-all shadow-lg shadow-red-200"
+                        >
+                          View Risk Profiles
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
           </div>
 
           {/* Sidebar: Top Performers & Quick Stats */}

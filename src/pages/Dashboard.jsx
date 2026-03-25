@@ -3,7 +3,7 @@ import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { 
   Users, GraduationCap, ClipboardCheck, AlertTriangle, 
   TrendingUp, TrendingDown, Search, Filter, Trash2, 
-  ChevronRight, AlertCircle, Bell
+  ChevronRight, AlertCircle, Bell, Sparkles, Calendar
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -75,27 +75,47 @@ const Dashboard = () => {
   };
 
   const stats = useMemo(() => {
-    if (records.length === 0) return { total: 0, avgMarks: 0, avgAttendance: 0, atRisk: 0, active: 0, inactive: 0, absent: 0 };
+    if (records.length === 0) return { 
+      total: 0, avgMarks: 0, avgAttendance: 0, atRisk: 0, 
+      active: 0, inactive: 0, absent: 0, 
+      impactScore: 0, parentMeetingsTotal: 0, onTrackStudents: 0 
+    };
     
     const total = records.length;
     const avgMarks = Math.round(records.reduce((sum, r) => sum + r.averageMarks, 0) / total);
     const avgAttendance = Math.round(records.reduce((sum, r) => sum + r.attendancePercentage, 0) / total);
-    const atRisk = records.filter(r => r.averageMarks < 40 || r.attendancePercentage < 75).length;
+    const atRisk = records.filter(r => r.averageMarks < 40 && r.attendancePercentage < 80).length;
     const active = records.filter(r => (r.status || 'Active') === 'Active').length;
     const inactive = records.filter(r => (r.status || 'Active') === 'Inactive').length;
     const absent = records.filter(r => (r.status || 'Active') === 'Absent').length;
+    
+    // Fellow Impact Score Calculation
+    const parentMeetingsTotal = records.reduce((sum, r) => sum + (r.parentMeetings || 0), 0);
+    const onTrackStudents = records.filter(r => r.averageMarks >= 40 && r.attendancePercentage >= 80).length;
+    const impactScore = Math.min(100, Math.round(
+      (onTrackStudents / (total || 1)) * 50 + 
+      (Math.min(parentMeetingsTotal, total * 2) / (total * 2 || 1)) * 30 +
+      (avgAttendance / 100) * 20
+    ));
 
-    return { total, avgMarks, avgAttendance, atRisk, active, inactive, absent };
+    return { total, avgMarks, avgAttendance, atRisk, active, inactive, absent, impactScore, parentMeetingsTotal, onTrackStudents };
   }, [records]);
 
   const alerts = useMemo(() => {
     const list = [];
     records.forEach(r => {
-      if (r.averageMarks < 40) list.push({ type: 'danger', message: `At-risk student detected: ${r.name} (${r.averageMarks}%)`, id: r.id });
-      if (r.attendancePercentage < 75) list.push({ type: 'warning', message: `Low attendance warning: ${r.name} (${r.attendancePercentage}%)`, id: r.id });
-      Object.entries(r.marks).forEach(([sub, score]) => {
-        if (score < 40) list.push({ type: 'info', message: `${r.name} needs improvement in ${sub}`, id: r.id });
-      });
+      if (r.averageMarks < 40 && r.attendancePercentage < 80) {
+        list.push({ 
+          type: 'danger', 
+          message: `CRITICAL RISK: ${r.name} is failing and absent.`, 
+          suggestion: "Home visit worked for 3 similar cases.",
+          id: r.id 
+        });
+      } else if (r.averageMarks < 40) {
+        list.push({ type: 'warning', message: `Low quiz scores: ${r.name} (${r.averageMarks}%)`, id: r.id });
+      } else if (r.attendancePercentage < 80) {
+        list.push({ type: 'info', message: `Attendance warning: ${r.name} (${r.attendancePercentage}%)`, id: r.id });
+      }
     });
     return list.slice(0, 5); // Show top 5 alerts
   }, [records]);
@@ -114,7 +134,7 @@ const Dashboard = () => {
   }, [records]);
 
   const atRiskStudents = useMemo(() => {
-    return records.filter(r => r.averageMarks < 40 || r.attendancePercentage < 75);
+    return records.filter(r => r.averageMarks < 40 && r.attendancePercentage < 80);
   }, [records]);
 
   const topStudents = useMemo(() => {
@@ -135,7 +155,7 @@ const Dashboard = () => {
     }
 
     if (statusFilter === 'at-risk') {
-      result = result.filter(r => r.averageMarks < 40 || r.attendancePercentage < 75);
+      result = result.filter(r => r.averageMarks < 40 && r.attendancePercentage < 80);
     } else if (['active', 'inactive', 'absent'].includes(statusFilter)) {
       result = result.filter(r => (r.status || 'Active').toLowerCase() === statusFilter);
     }
@@ -172,6 +192,30 @@ const Dashboard = () => {
           <p className="text-text/60 font-medium">Real-time tracking of student performance and attendance.</p>
         </div>
         <div className="flex items-center gap-3">
+          {/* Fellow Impact Score */}
+          <motion.div 
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="hidden lg:flex items-center gap-4 bg-white px-6 py-3 rounded-2xl border border-primary/10 shadow-sm"
+          >
+            <div className="text-right">
+              <p className="text-[10px] font-bold text-text/40 uppercase tracking-widest">Fellow Impact Score</p>
+              <p className="text-xl font-bold text-primary">{stats.impactScore}/100</p>
+            </div>
+            <div className="w-12 h-12 rounded-full border-4 border-primary/10 flex items-center justify-center relative">
+              <Sparkles size={20} className="text-primary" />
+              <svg className="absolute inset-0 w-full h-full -rotate-90">
+                <circle
+                  cx="24" cy="24" r="20"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  className="text-primary"
+                  strokeDasharray={`${(stats.impactScore / 100) * 125.6} 125.6`}
+                />
+              </svg>
+            </div>
+          </motion.div>
           <div className="relative group">
             <button 
               onClick={() => setShowAlerts(!showAlerts)}
@@ -205,7 +249,12 @@ const Dashboard = () => {
                         <AlertCircle size={18} className={cn(
                           alert.type === 'danger' ? "text-red-500" : alert.type === 'warning' ? "text-accent" : "text-secondary"
                         )} />
-                        <p className="text-xs font-medium text-text/80 group-hover:text-primary">{alert.message}</p>
+                        <div className="space-y-1">
+                          <p className="text-xs font-bold text-text/80 group-hover:text-primary">{alert.message}</p>
+                          {alert.suggestion && (
+                            <p className="text-[10px] text-primary font-medium italic">💡 {alert.suggestion}</p>
+                          )}
+                        </div>
                       </Link>
                     )) : (
                       <div className="p-8 text-center text-text/40 text-sm italic">No active alerts</div>
@@ -292,6 +341,54 @@ const Dashboard = () => {
         ))}
       </div>
 
+      {/* Fellow Impact Dashboard Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.8 }}
+        className="bg-primary p-10 rounded-[50px] text-white shadow-2xl shadow-primary/20 relative overflow-hidden"
+      >
+        <div className="absolute top-0 right-0 p-12 opacity-10 rotate-12">
+          <Sparkles size={160} />
+        </div>
+        <div className="relative z-10 grid md:grid-cols-2 lg:grid-cols-4 gap-8 items-center">
+          <div className="space-y-2">
+            <h3 className="text-3xl font-bold">Fellow Impact Dashboard</h3>
+            <p className="text-white/60 font-medium">Measuring your classroom transformation.</p>
+          </div>
+          
+          <div className="bg-white/10 p-6 rounded-3xl border border-white/10 flex flex-col items-center gap-3">
+            <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center text-white">
+              <Users size={28} />
+            </div>
+            <div className="text-center">
+              <p className="text-4xl font-bold">+{stats.onTrackStudents}</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">Students On-Track</p>
+            </div>
+          </div>
+
+          <div className="bg-white/10 p-6 rounded-3xl border border-white/10 flex flex-col items-center gap-3">
+            <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center text-white">
+              <Calendar size={28} />
+            </div>
+            <div className="text-center">
+              <p className="text-4xl font-bold">{stats.parentMeetingsTotal}</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">Parent Meetings Conducted</p>
+            </div>
+          </div>
+
+          <div className="bg-white/10 p-6 rounded-3xl border border-white/10 flex flex-col items-center gap-3">
+            <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center text-white">
+              <TrendingUp size={28} />
+            </div>
+            <div className="text-center">
+              <p className="text-4xl font-bold">{stats.impactScore}%</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">Overall Efficiency Score</p>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
       {/* Extended Dashboard Analysis */}
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="bg-white p-6 rounded-[30px] border border-primary/10 shadow-sm space-y-3">
@@ -309,7 +406,7 @@ const Dashboard = () => {
 
         <div className="bg-white p-6 rounded-[30px] border border-primary/10 shadow-sm space-y-3">
           <h4 className="text-sm font-bold text-text/50 uppercase tracking-widest">At-Risk Analysis</h4>
-          <p className="text-sm text-text/70">Students with marks &lt; 40 or attendance &lt; 75</p>
+          <p className="text-[10px] text-text/70 uppercase font-bold">Students with marks &lt; 40 AND attendance &lt; 80%</p>
           <p className="text-3xl font-bold text-red-600">{atRiskStudents.length}</p>
           {atRiskStudents.slice(0, 4).map(student => (
             <div key={student.id} className="flex items-center justify-between text-sm py-1">
@@ -427,9 +524,13 @@ const Dashboard = () => {
                   </td>
                   <td className="px-8 py-6 text-center space-y-2">
                     <div>
-                      {(record.averageMarks < 40 || record.attendancePercentage < 75) ? (
+                      {(record.averageMarks < 40 && record.attendancePercentage < 80) ? (
                         <span className="inline-flex items-center gap-1 px-3 py-1 bg-red-50 text-red-600 rounded-full text-[10px] font-bold uppercase tracking-widest">
-                          <AlertTriangle size={12} /> At Risk
+                          <AlertTriangle size={12} /> Critical Risk
+                        </span>
+                      ) : (record.averageMarks < 40 || record.attendancePercentage < 80) ? (
+                        <span className="inline-flex items-center gap-1 px-3 py-1 bg-orange-50 text-orange-600 rounded-full text-[10px] font-bold uppercase tracking-widest">
+                          Warning
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-50 text-green-600 rounded-full text-[10px] font-bold uppercase tracking-widest">

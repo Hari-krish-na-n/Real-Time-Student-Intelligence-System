@@ -5,6 +5,8 @@ import Home from './pages/Home';
 import DataEntry from './pages/DataEntry';
 import Dashboard from './pages/Dashboard';
 import Insights from './pages/Insights';
+import Attendance from './pages/Attendance';
+import Tracker from './pages/Tracker';
 import StudentProfile from './pages/StudentProfile';
 import ErrorBoundary from './components/ErrorBoundary';
 
@@ -52,10 +54,13 @@ export default function App() {
     <Router>
       <Layout>
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/home" element={<Home />} />
           <Route path="/entry" element={<DataEntry />} />
           <Route path="/entry/:id" element={<DataEntry />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/attendance" element={<Attendance />} />
+          <Route path="/tracker" element={<Tracker />} />
           <Route path="/insights" element={<Insights />} />
           <Route path="/student/:id" element={
             <ErrorBoundary>

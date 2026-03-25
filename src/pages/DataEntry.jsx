@@ -23,6 +23,7 @@ const DataEntry = () => {
     parentPhone: '',
     parentOccupation: '',
     address: '',
+    parentMeetings: 0,
     // Academic Performance
     marks: {
       math: 0,
@@ -224,6 +225,17 @@ const DataEntry = () => {
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                   className="w-full px-4 py-3 bg-background border-2 border-transparent focus:border-primary/20 rounded-xl outline-none"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-text/40 uppercase tracking-widest">Parent Meetings Conducted</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.parentMeetings}
+                  onChange={(e) => setFormData({ ...formData, parentMeetings: parseInt(e.target.value) || 0 })}
+                  className="w-full px-4 py-3 bg-background border-2 border-transparent focus:border-primary/20 rounded-xl outline-none"
+                  placeholder="e.g. 2"
                 />
               </div>
             </div>
