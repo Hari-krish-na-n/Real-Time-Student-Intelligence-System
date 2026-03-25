@@ -4,11 +4,11 @@
 @theme {
   --font-serif: "Cormorant Garamond", serif;
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --color-primary: #2E7D32;
-  --color-secondary: #66BB6A;
-  --color-background: #F1F8E9;
-  --color-text: #1B5E20;
-  --color-accent: #FFC107;
+  --color-primary: #1E3A8A; /* deep indigo */
+  --color-secondary: #3B82F6; /* sky blue */
+  --color-background: #EFF6FF; /* light blue background */
+  --color-text: #0F172A; /* dark slate */
+  --color-accent: #6366F1; /* violet accent */
 }
 
 @layer base {

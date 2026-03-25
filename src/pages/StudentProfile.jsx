@@ -88,6 +88,13 @@ const AttendanceCalendar = ({ percentage, studentId }) => {
   );
 };
 
+const getStatusBadgeStyle = (status) => {
+  if (status === 'Active') return 'bg-green-50 text-green-700';
+  if (status === 'Inactive') return 'bg-gray-100 text-gray-700';
+  if (status === 'Absent') return 'bg-red-50 text-red-600';
+  return 'bg-background text-text';
+};
+
 const StudentProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -97,11 +104,18 @@ const StudentProfile = () => {
     const records = JSON.parse(localStorage.getItem('studentRecords') || '[]');
     const found = records.find(r => r.id === id);
     if (found) {
-      setStudent(found);
+      setStudent({ ...found, status: found.status || 'Active' });
     } else {
       navigate('/dashboard');
     }
   }, [id, navigate]);
+
+  const setStatus = (newStatus) => {
+    const records = JSON.parse(localStorage.getItem('studentRecords') || '[]');
+    const updatedRecords = records.map(r => r.id === id ? { ...r, status: newStatus } : r);
+    localStorage.setItem('studentRecords', JSON.stringify(updatedRecords));
+    setStudent(prev => ({ ...prev, status: newStatus }));
+  };
 
   if (!student) return null;
 
@@ -128,6 +142,15 @@ const StudentProfile = () => {
           <ChevronLeft size={20} /> Back to Dashboard
         </button>
         <div className="flex items-center gap-4">
+          <select
+            value={student.status || 'Active'}
+            onChange={(e) => setStatus(e.target.value)}
+            className="px-3 py-2 border border-primary/20 rounded-xl text-sm font-bold bg-white"
+          >
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+            <option value="Absent">Absent</option>
+          </select>
           <Link 
             to="/entry"
             className="flex items-center gap-2 text-text/40 hover:text-primary text-xs font-bold uppercase tracking-widest transition-all"
@@ -157,9 +180,15 @@ const StudentProfile = () => {
             <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
               <User size={48} className="text-primary" />
             </div>
-            <div className="text-center space-y-1">
+            <div className="text-center space-y-2">
               <h1 className="text-2xl font-bold text-text">{student.name}</h1>
-              <p className="text-text/40 font-medium">{student.grade} • {student.age} Years Old • {student.gender}</p>
+              <div className="flex items-center justify-center gap-2">
+                <p className="text-text/40 font-medium">{student.grade} • {student.age} Years Old • {student.gender}</p>
+                <span className={cn(
+                  "px-2 py-1 rounded-full text-xs font-bold uppercase tracking-widest",
+                  getStatusBadgeStyle(student.status)
+                )}> {student.status || 'Active'} </span>
+              </div>
             </div>
             
             <div className="space-y-4 pt-4 border-t border-primary/5">

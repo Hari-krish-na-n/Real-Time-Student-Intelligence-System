@@ -35,6 +35,8 @@ const DataEntry = () => {
       totalDays: 20,
       presentDays: 0
     },
+    // Student Status
+    status: 'Active',
     // Engagement
     engagement: 'Medium',
     remarks: ''
@@ -45,7 +47,7 @@ const DataEntry = () => {
       const records = JSON.parse(localStorage.getItem('studentRecords') || '[]');
       const found = records.find(r => r.id === id);
       if (found) {
-        setFormData(found);
+        setFormData({ ...found, status: found.status || 'Active' });
       }
     }
   }, [id]);
@@ -160,6 +162,18 @@ const DataEntry = () => {
                   <option>Male</option>
                   <option>Female</option>
                   <option>Other</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-text/40 uppercase tracking-widest">Student Status</label>
+                <select
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  className="w-full px-4 py-3 bg-background border-2 border-transparent focus:border-primary/20 rounded-xl outline-none"
+                >
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                  <option value="Absent">Absent</option>
                 </select>
               </div>
             </div>

@@ -18,9 +18,42 @@ const Dashboard = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [showAlerts, setShowAlerts] = useState(false);
 
+  const getMarkColor = (marks) => {
+    if (marks >= 75) return 'text-green-600';
+    if (marks >= 40) return 'text-orange-600';
+    return 'text-red-600';
+  };
+
+  const getAttendanceColor = (attendance) => {
+    if (attendance >= 90) return 'text-green-600';
+    if (attendance >= 75) return 'text-amber-600';
+    return 'text-red-600';
+  };
+
+  const getStatusBadgeStyle = (status) => {
+    if (status === 'Active') return 'bg-green-50 text-green-700';
+    if (status === 'Inactive') return 'bg-gray-100 text-gray-700';
+    if (status === 'Absent') return 'bg-red-50 text-red-600';
+    return 'bg-background text-text';
+  };
+
+  const getAttendanceBar = (attendance) => {
+    if (attendance >= 90) return 'bg-green-500';
+    if (attendance >= 75) return 'bg-amber-500';
+    return 'bg-red-400';
+  };
+
+  const updateStatus = (id, status) => {
+    const updatedRecords = records.map(r => r.id === id ? { ...r, status } : r);
+    setRecords(updatedRecords);
+    localStorage.setItem('studentRecords', JSON.stringify(updatedRecords));
+  };
+
   useEffect(() => {
     const existingRecords = JSON.parse(localStorage.getItem('studentRecords') || '[]');
-    setRecords(existingRecords);
+    const normalizedRecords = existingRecords.map(r => ({ ...r, status: r.status || 'Active' }));
+    setRecords(normalizedRecords);
+    localStorage.setItem('studentRecords', JSON.stringify(normalizedRecords));
 
     // Handle state from Insights
     if (location.state) {
@@ -42,14 +75,17 @@ const Dashboard = () => {
   };
 
   const stats = useMemo(() => {
-    if (records.length === 0) return { total: 0, avgMarks: 0, avgAttendance: 0, atRisk: 0 };
+    if (records.length === 0) return { total: 0, avgMarks: 0, avgAttendance: 0, atRisk: 0, active: 0, inactive: 0, absent: 0 };
     
     const total = records.length;
     const avgMarks = Math.round(records.reduce((sum, r) => sum + r.averageMarks, 0) / total);
     const avgAttendance = Math.round(records.reduce((sum, r) => sum + r.attendancePercentage, 0) / total);
     const atRisk = records.filter(r => r.averageMarks < 40 || r.attendancePercentage < 75).length;
+    const active = records.filter(r => (r.status || 'Active') === 'Active').length;
+    const inactive = records.filter(r => (r.status || 'Active') === 'Inactive').length;
+    const absent = records.filter(r => (r.status || 'Active') === 'Absent').length;
 
-    return { total, avgMarks, avgAttendance, atRisk };
+    return { total, avgMarks, avgAttendance, atRisk, active, inactive, absent };
   }, [records]);
 
   const alerts = useMemo(() => {
@@ -69,6 +105,26 @@ const Dashboard = () => {
     return uniqueGrades.sort();
   }, [records]);
 
+  const gradeDistribution = useMemo(() => {
+    return records.reduce((acc, r) => {
+      const g = r.grade || 'No Grade';
+      acc[g] = (acc[g] || 0) + 1;
+      return acc;
+    }, {});
+  }, [records]);
+
+  const atRiskStudents = useMemo(() => {
+    return records.filter(r => r.averageMarks < 40 || r.attendancePercentage < 75);
+  }, [records]);
+
+  const topStudents = useMemo(() => {
+    return [...records].sort((a, b) => b.averageMarks - a.averageMarks).slice(0, 3);
+  }, [records]);
+
+  const bottomStudents = useMemo(() => {
+    return [...records].sort((a, b) => a.averageMarks - b.averageMarks).slice(0, 3);
+  }, [records]);
+
   const filteredRecords = useMemo(() => {
     let result = records.filter(r => 
       r.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -80,6 +136,8 @@ const Dashboard = () => {
 
     if (statusFilter === 'at-risk') {
       result = result.filter(r => r.averageMarks < 40 || r.attendancePercentage < 75);
+    } else if (['active', 'inactive', 'absent'].includes(statusFilter)) {
+      result = result.filter(r => (r.status || 'Active').toLowerCase() === statusFilter);
     }
 
     if (sortBy === 'name') {
@@ -94,6 +152,17 @@ const Dashboard = () => {
 
     return result;
   }, [records, searchTerm, sortBy, gradeFilter, statusFilter]);
+
+  const bulkUpdateStatus = (status) => {
+    const toUpdate = filteredRecords;
+    if (!toUpdate.length) return;
+    const updatedRecords = records.map(r =>
+      toUpdate.some(u => u.id === r.id) ? { ...r, status } : r
+    );
+    setRecords(updatedRecords);
+    localStorage.setItem('studentRecords', JSON.stringify(updatedRecords));
+  };
+
 
   return (
     <div className="space-y-8 py-8 px-4">
@@ -185,6 +254,9 @@ const Dashboard = () => {
               >
                 <option value="all">All Status</option>
                 <option value="at-risk">At Risk Only</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="absent">Absent</option>
               </select>
             </div>
           </div>
@@ -198,6 +270,9 @@ const Dashboard = () => {
           { label: "Class Avg Marks", value: `${stats.avgMarks}%`, icon: GraduationCap, color: "bg-secondary/10 text-secondary" },
           { label: "Avg Attendance", value: `${stats.avgAttendance}%`, icon: ClipboardCheck, color: "bg-accent/10 text-accent" },
           { label: "At Risk", value: stats.atRisk, icon: AlertTriangle, color: "bg-red-50 text-red-600" },
+          { label: "Active", value: stats.active, icon: Users, color: "bg-green-50 text-green-700" },
+          { label: "Inactive", value: stats.inactive, icon: Bell, color: "bg-gray-100 text-gray-700" },
+          { label: "Absent", value: stats.absent, icon: AlertTriangle, color: "bg-red-50 text-red-600" },
         ].map((stat, idx) => (
           <motion.div
             key={idx}
@@ -215,6 +290,62 @@ const Dashboard = () => {
             </div>
           </motion.div>
         ))}
+      </div>
+
+      {/* Extended Dashboard Analysis */}
+      <div className="grid lg:grid-cols-3 gap-6">
+        <div className="bg-white p-6 rounded-[30px] border border-primary/10 shadow-sm space-y-3">
+          <h4 className="text-sm font-bold text-text/50 uppercase tracking-widest">Grade Distribution</h4>
+          {Object.entries(gradeDistribution).map(([grade, count]) => (
+            <div key={grade} className="flex items-center gap-3">
+              <span className="w-24 text-xs font-medium text-text/70">{grade}</span>
+              <div className="w-full h-2 bg-background rounded-full overflow-hidden">
+                <div className="h-full bg-primary rounded-full" style={{ width: `${(count / Math.max(stats.total, 1)) * 100}%` }} />
+              </div>
+              <span className="text-xs font-bold text-text">{count}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="bg-white p-6 rounded-[30px] border border-primary/10 shadow-sm space-y-3">
+          <h4 className="text-sm font-bold text-text/50 uppercase tracking-widest">At-Risk Analysis</h4>
+          <p className="text-sm text-text/70">Students with marks &lt; 40 or attendance &lt; 75</p>
+          <p className="text-3xl font-bold text-red-600">{atRiskStudents.length}</p>
+          {atRiskStudents.slice(0, 4).map(student => (
+            <div key={student.id} className="flex items-center justify-between text-sm py-1">
+              <span>{student.name}</span>
+              <span className="font-bold">{student.averageMarks}%</span>
+            </div>
+          ))}
+          {atRiskStudents.length > 4 && (
+            <div className="text-xs font-bold text-primary">+{atRiskStudents.length - 4} more</div>
+          )}
+        </div>
+
+        <div className="bg-white p-6 rounded-[30px] border border-primary/10 shadow-sm space-y-4">
+          <h4 className="text-sm font-bold text-text/50 uppercase tracking-widest">Quick Bulk Actions</h4>
+          <div className="space-y-2">
+            <button
+              onClick={() => bulkUpdateStatus('Absent')}
+              className="w-full py-2 rounded-xl bg-red-50 text-red-600 font-bold hover:bg-red-100 transition-all"
+            >
+              Mark Filtered as Absent
+            </button>
+            <button
+              onClick={() => bulkUpdateStatus('Inactive')}
+              className="w-full py-2 rounded-xl bg-gray-100 text-gray-700 font-bold hover:bg-gray-200 transition-all"
+            >
+              Mark Filtered as Inactive
+            </button>
+            <button
+              onClick={() => bulkUpdateStatus('Active')}
+              className="w-full py-2 rounded-xl bg-green-50 text-green-700 font-bold hover:bg-green-100 transition-all"
+            >
+              Mark Filtered as Active
+            </button>
+          </div>
+          <p className="text-xs text-text/60">Actions apply to currently filtered students (name/grade/status).</p>
+        </div>
       </div>
 
       {/* Student List Table */}
@@ -273,7 +404,7 @@ const Dashboard = () => {
                   <td className="px-8 py-6 text-center">
                     <span className={cn(
                       "font-bold text-lg",
-                      record.averageMarks < 40 ? "text-red-600" : "text-text"
+                      getMarkColor(record.averageMarks)
                     )}>
                       {record.averageMarks}%
                     </span>
@@ -282,31 +413,52 @@ const Dashboard = () => {
                     <div className="flex flex-col items-center gap-1">
                       <span className={cn(
                         "font-bold",
-                        record.attendancePercentage < 75 ? "text-accent" : "text-text/60"
+                        getAttendanceColor(record.attendancePercentage)
                       )}>
                         {record.attendancePercentage}%
                       </span>
                       <div className="w-16 h-1 bg-gray-100 rounded-full overflow-hidden">
                         <div 
-                          className={cn("h-full rounded-full", record.attendancePercentage < 75 ? "bg-accent" : "bg-primary")}
+                          className={cn("h-full rounded-full", getAttendanceBar(record.attendancePercentage))}
                           style={{ width: `${record.attendancePercentage}%` }}
                         />
                       </div>
                     </div>
                   </td>
-                  <td className="px-8 py-6 text-center">
-                    {record.averageMarks < 40 || record.attendancePercentage < 75 ? (
-                      <span className="inline-flex items-center gap-1 px-3 py-1 bg-red-50 text-red-600 rounded-full text-[10px] font-bold uppercase tracking-widest">
-                        <AlertTriangle size={12} /> At Risk
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-50 text-green-600 rounded-full text-[10px] font-bold uppercase tracking-widest">
-                        On Track
-                      </span>
-                    )}
+                  <td className="px-8 py-6 text-center space-y-2">
+                    <div>
+                      {(record.averageMarks < 40 || record.attendancePercentage < 75) ? (
+                        <span className="inline-flex items-center gap-1 px-3 py-1 bg-red-50 text-red-600 rounded-full text-[10px] font-bold uppercase tracking-widest">
+                          <AlertTriangle size={12} /> At Risk
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-50 text-green-600 rounded-full text-[10px] font-bold uppercase tracking-widest">
+                          On Track
+                        </span>
+                      )}
+                    </div>
+                    <div className={cn(
+                      "inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest",
+                      getStatusBadgeStyle(record.status)
+                    )}>
+                      {record.status || 'Active'}
+                    </div>
                   </td>
                   <td className="px-8 py-6 text-right">
                     <div className="flex items-center justify-end gap-2">
+                      <select
+                        value={record.status || 'Active'}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          updateStatus(record.id, e.target.value);
+                        }}
+                        className="px-2 py-1 rounded-xl border border-primary/10 text-xs font-bold text-text/80 bg-white"
+                      >
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                        <option value="Absent">Absent</option>
+                      </select>
                       <button 
                         onClick={(e) => handleDelete(record.id, e)}
                         className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"

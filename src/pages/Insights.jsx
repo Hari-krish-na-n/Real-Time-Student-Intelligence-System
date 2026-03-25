@@ -39,7 +39,9 @@ const Insights = () => {
       avg: Math.round(totalScore / total)
     }));
 
-    const weakestSubject = subjectAverages.reduce((min, curr) => curr.avg < min.avg ? curr : min);
+    const weakestSubject = subjectAverages.length > 0
+      ? subjectAverages.reduce((min, curr) => curr.avg < min.avg ? curr : min)
+      : { subject: 'N/A', avg: 0 };
     const topPerformers = [...records].sort((a, b) => b.averageMarks - a.averageMarks).slice(0, 3);
     const lowAttendance = records.filter(r => r.attendancePercentage < 75);
 
@@ -81,7 +83,15 @@ const Insights = () => {
       });
     }
 
-    return { results, topPerformers, weakestSubject };
+    const statusCounts = records.reduce((acc, r) => {
+      const status = r.status || 'Active';
+      acc[status] = (acc[status] || 0) + 1;
+      return acc;
+    }, {});
+
+    const lowEngagement = records.filter(r => r.engagement === 'Low');
+
+    return { results, topPerformers, weakestSubject, statusCounts, lowAttendance, lowEngagement };
   }, [records]);
 
   return (
@@ -196,6 +206,37 @@ const Insights = () => {
                 <div className="p-4 bg-white/10 rounded-2xl border border-white/10">
                   <p className="text-xs font-bold uppercase tracking-widest text-white/60 mb-1">Target Improvement</p>
                   <p className="text-2xl font-bold">+15% Average Score</p>
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 }}
+              className="bg-white p-6 rounded-[30px] border border-primary/10 shadow-sm space-y-4"
+            >
+              <h3 className="text-lg font-bold text-text">Status & Engagement Summary</h3>
+              <div className="grid grid-cols-1 gap-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-text/70">Active Students</span>
+                  <span className="font-bold text-green-700">{insights.statusCounts.Active || 0}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-text/70">Inactive Students</span>
+                  <span className="font-bold text-gray-700">{insights.statusCounts.Inactive || 0}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-text/70">Absent Students</span>
+                  <span className="font-bold text-red-600">{insights.statusCounts.Absent || 0}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-text/70">Low Attendance</span>
+                  <span className="font-bold text-red-600">{insights.lowAttendance.length}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-text/70">Low Engagement</span>
+                  <span className="font-bold text-orange-600">{insights.lowEngagement.length}</span>
                 </div>
               </div>
             </motion.div>
